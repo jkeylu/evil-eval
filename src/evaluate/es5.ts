@@ -65,7 +65,7 @@ export function DebuggerStatement(env: Environment<ESTree.DebuggerStatement>) {
 }
 
 export function WithStatement(env: Environment<ESTree.WithStatement>) {
-    throw new Error(`"${env.node.type}" not implemented`);
+    throw new Error(`evil-eval: "${env.node.type}" not implemented`);
 }
 
 export function ReturnStatement(env: Environment<ESTree.ReturnStatement>) {
@@ -234,7 +234,7 @@ export function ForInStatement(env: Environment<ESTree.ForInStatement>) {
         value = scope.declare(keyName, null, left.kind);
         isConstDeclaration = left.kind === 'const';
     } else {
-        throw new Error();
+        throw new Error(`evil-eval: [ForInStatement] Unsupported left type "${left.type}"`);
     }
 
     for (const key in env.evaluate(right)) {
@@ -271,7 +271,7 @@ export function VariableDeclaration(env: Environment<ESTree.VariableDeclaration>
 }
 
 export function VariableDeclarator(env: Environment<ESTree.VariableDeclarator>) {
-    throw new Error();
+    throw new Error(`evil-eval: [VariableDeclarator] Should not happen`);
 }
 
 export function ThisExpression(env: Environment<ESTree.ThisExpression>) {
@@ -293,7 +293,7 @@ export function ObjectExpression(env: Environment<ESTree.ObjectExpression>) {
         } else if (property.key.type === 'Identifier') {
             key = property.key.name;
         } else {
-            throw new Error();
+            throw new Error(`evil-eval: [ObjectExpression] Unsupported property key type "${property.key.type}"`);
         }
         obj[key] = env.evaluate(property.value);
     }
@@ -302,7 +302,7 @@ export function ObjectExpression(env: Environment<ESTree.ObjectExpression>) {
 }
 
 export function Property(env: Environment<ESTree.Property>) {
-    throw new Error();
+    throw new Error(`evil-eval: [Property] Should not happen`);
 }
 
 export function FunctionExpression(env: Environment<ESTree.FunctionExpression>) {
@@ -342,11 +342,11 @@ const UnaryExpressionOperatorEvaluateMap = {
             try {
                 const value = env.scope.get(env.node.argument.name);
                 return value ? typeof value.v : 'undefined';
-            } catch (e) {
-                if (e.message === `${env.node.argument.name} is not defined`) {
+            } catch (err) {
+                if (err.message === `${env.node.argument.name} is not defined`) {
                     return 'undefined';
                 } else {
-                    throw e;
+                    throw err;
                 }
             }
         } else {

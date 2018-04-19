@@ -20,6 +20,6 @@ export function getIdentifierOrMemberExpressionValue(node: ESTree.Pattern | ESTr
         return createMemberValue(obj, name);
 
     } else {
-        throw new Error();
+        throw new Error(`evil-eval: Not support to get value of node type "${node.type}"`);
     }
 }

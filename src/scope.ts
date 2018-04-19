@@ -42,7 +42,7 @@ export default class Scope {
             return this.constDeclare(name, value);
 
         } else {
-            throw new Error();
+            throw new Error('evil-eval: Invalid Variable Declaration Kind');
         }
     }
 

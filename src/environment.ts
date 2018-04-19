@@ -29,7 +29,7 @@ export default class Environment<T> {
 
         const evaluate = this.evaluateMap[node.type];
         if (!evaluate) {
-            throw new Error();
+            throw new Error(`evil-eval: Node type "${node.type}" is not implemented`);
         }
 
         return evaluate(env);

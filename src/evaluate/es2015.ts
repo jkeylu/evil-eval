@@ -15,7 +15,7 @@ export function ObjectExpression(env: Environment<ESTree.ObjectExpression>) {
             } else if (property.key.type === 'Identifier') {
                 key = property.key.name;
             } else {
-                throw new Error();
+                throw new Error(`evil-eval: [ObjectExpression] Unsupported property key type "${property.key.type}"`);
             }
         } else {
             if (property.key.type === 'Identifier') {
@@ -34,7 +34,7 @@ export function ObjectExpression(env: Environment<ESTree.ObjectExpression>) {
         } else if (property.kind === 'set') {
             Object.defineProperty(obj, key, { set: value });
         } else {
-            throw new Error();
+            throw new Error(`evil-eval: [ObjectExpression] Unsupported property kind "${property.kind}"`);
         }
     }
 
@@ -42,101 +42,101 @@ export function ObjectExpression(env: Environment<ESTree.ObjectExpression>) {
 }
 
 export function ForOfStatement(env: Environment<ESTree.ForOfStatement>) {
-    throw new Error(`"${env.node.type}" not implemented`);
+    throw new Error(`evil-eval: "${env.node.type}" not implemented`);
 }
 
 export function Super(env: Environment<ESTree.Super>) {
-    throw new Error(`"${env.node.type}" not implemented`);
+    throw new Error(`evil-eval: "${env.node.type}" not implemented`);
 }
 
 export function SpreadElement(env: Environment<ESTree.SpreadElement>) {
-    throw new Error(`"${env.node.type}" not implemented`);
+    throw new Error(`evil-eval: "${env.node.type}" not implemented`);
 }
 
 export function ArrowFunctionExpression(env: Environment<ESTree.ArrowFunctionExpression>) {
-    throw new Error(`"${env.node.type}" not implemented`);
+    throw new Error(`evil-eval: "${env.node.type}" not implemented`);
 }
 
 export function YieldExpression(env: Environment<ESTree.YieldExpression>) {
-    throw new Error(`"${env.node.type}" not implemented`);
+    throw new Error(`evil-eval: "${env.node.type}" not implemented`);
 }
 
 export function TemplateLiteral(env: Environment<ESTree.TemplateLiteral>) {
-    throw new Error(`"${env.node.type}" not implemented`);
+    throw new Error(`evil-eval: "${env.node.type}" not implemented`);
 }
 
 export function TaggedTemplateExpression(env: Environment<ESTree.TaggedTemplateExpression>) {
-    throw new Error(`"${env.node.type}" not implemented`);
+    throw new Error(`evil-eval: "${env.node.type}" not implemented`);
 }
 
 export function TemplateElement(env: Environment<ESTree.TemplateElement>) {
-    throw new Error(`"${env.node.type}" not implemented`);
+    throw new Error(`evil-eval: "${env.node.type}" not implemented`);
 }
 
 export function ObjectPattern(env: Environment<ESTree.ObjectPattern>) {
-    throw new Error(`"${env.node.type}" not implemented`);
+    throw new Error(`evil-eval: "${env.node.type}" not implemented`);
 }
 
 export function ArrayPattern(env: Environment<ESTree.ArrayPattern>) {
-    throw new Error(`"${env.node.type}" not implemented`);
+    throw new Error(`evil-eval: "${env.node.type}" not implemented`);
 }
 
 export function RestElement(env: Environment<ESTree.RestElement>) {
-    throw new Error(`"${env.node.type}" not implemented`);
+    throw new Error(`evil-eval: "${env.node.type}" not implemented`);
 }
 
 export function AssignmentPattern(env: Environment<ESTree.AssignmentPattern>) {
-    throw new Error(`"${env.node.type}" not implemented`);
+    throw new Error(`evil-eval: "${env.node.type}" not implemented`);
 }
 
 export function ClassBody(env: Environment<ESTree.ClassBody>) {
-    throw new Error(`"${env.node.type}" not implemented`);
+    throw new Error(`evil-eval: "${env.node.type}" not implemented`);
 }
 
 export function MethodDefinition(env: Environment<ESTree.MethodDefinition>) {
-    throw new Error(`"${env.node.type}" not implemented`);
+    throw new Error(`evil-eval: "${env.node.type}" not implemented`);
 }
 
 export function ClassDeclaration(env: Environment<ESTree.ClassDeclaration>) {
-    throw new Error(`"${env.node.type}" not implemented`);
+    throw new Error(`evil-eval: "${env.node.type}" not implemented`);
 }
 
 export function ClassExpression(env: Environment<ESTree.ClassExpression>) {
-    throw new Error(`"${env.node.type}" not implemented`);
+    throw new Error(`evil-eval: "${env.node.type}" not implemented`);
 }
 
 export function MetaProperty(env: Environment<ESTree.MetaProperty>) {
-    throw new Error(`"${env.node.type}" not implemented`);
+    throw new Error(`evil-eval: "${env.node.type}" not implemented`);
 }
 
 export function ImportDeclaration(env: Environment<ESTree.ImportDeclaration>) {
-    throw new Error(`"${env.node.type}" not implemented`);
+    throw new Error(`evil-eval: "${env.node.type}" not implemented`);
 }
 
 export function ImportSpecifier(env: Environment<ESTree.ImportSpecifier>) {
-    throw new Error(`"${env.node.type}" not implemented`);
+    throw new Error(`evil-eval: "${env.node.type}" not implemented`);
 }
 
 export function ImportDefaultSpecifier(env: Environment<ESTree.ImportDefaultSpecifier>) {
-    throw new Error(`"${env.node.type}" not implemented`);
+    throw new Error(`evil-eval: "${env.node.type}" not implemented`);
 }
 
 export function ImportNamespaceSpecifier(env: Environment<ESTree.ImportNamespaceSpecifier>) {
-    throw new Error(`"${env.node.type}" not implemented`);
+    throw new Error(`evil-eval: "${env.node.type}" not implemented`);
 }
 
 export function ExportNamedDeclaration(env: Environment<ESTree.ExportNamedDeclaration>) {
-    throw new Error(`"${env.node.type}" not implemented`);
+    throw new Error(`evil-eval: "${env.node.type}" not implemented`);
 }
 
 export function ExportSpecifier(env: Environment<ESTree.ExportSpecifier>) {
-    throw new Error(`"${env.node.type}" not implemented`);
+    throw new Error(`evil-eval: "${env.node.type}" not implemented`);
 }
 
 export function ExportDefaultDeclaration(env: Environment<ESTree.ExportDefaultDeclaration>) {
-    throw new Error(`"${env.node.type}" not implemented`);
+    throw new Error(`evil-eval: "${env.node.type}" not implemented`);
 }
 
 export function ExportAllDeclaration(env: Environment<ESTree.ExportAllDeclaration>) {
-    throw new Error(`"${env.node.type}" not implemented`);
+    throw new Error(`evil-eval: "${env.node.type}" not implemented`);
 }

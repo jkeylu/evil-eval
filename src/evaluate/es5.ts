@@ -1,6 +1,6 @@
 import * as ESTree from 'estree';
 import Scope from '../scope';
-import { Value } from '../value';
+import { Value, createMemberValue } from '../value';
 import Signal from '../signal';
 import Environment from '../environment';
 import * as Tool from '../tool';
@@ -352,7 +352,7 @@ const UnaryExpressionOperatorEvaluateMap = {
         const argument = env.node.argument;
         if (argument.type === 'MemberExpression') {
             const obj = env.evaluate(argument.object);
-            const name = Tool.getPropertyName(argument, env);
+            const name = getPropertyName(argument, env);
             return delete obj[name];
         } else if (argument.type === 'Identifier') {
             return false;
@@ -370,7 +370,7 @@ const UpdateExpressionOperatorEvaluateMap = {
     '--': (value: Value, prefix: boolean) => prefix ? --value.v : value.v--
 };
 export function UpdateExpression(env: Environment<ESTree.UpdateExpression>) {
-    const value = Tool.getIdentifierOrMemberExpressionValue(env.node.argument, env);
+    const value = getIdentifierOrMemberExpressionValue(env.node.argument, env);
     return UpdateExpressionOperatorEvaluateMap[env.node.operator](value, env.node.prefix);
 }
 
@@ -421,7 +421,7 @@ const AssignmentExpressionOperatorEvaluateMap = {
 };
 export function AssignmentExpression(env: Environment<ESTree.AssignmentExpression>) {
     const node = env.node;
-    const value = Tool.getIdentifierOrMemberExpressionValue(node.left, env, node.operator === '=');
+    const value = getIdentifierOrMemberExpressionValue(node.left, env, node.operator === '=');
     return AssignmentExpressionOperatorEvaluateMap[node.operator](value, env.evaluate(node.right));
 }
 
@@ -437,7 +437,7 @@ export function LogicalExpression(env: Environment<ESTree.LogicalExpression>) {
 
 export function MemberExpression(env: Environment<ESTree.MemberExpression>) {
     const obj = env.evaluate(env.node.object);
-    const name = Tool.getPropertyName(env.node, env);
+    const name = getPropertyName(env.node, env);
     return obj[name];
 }
 
@@ -471,4 +471,28 @@ export function SequenceExpression(env: Environment<ESTree.SequenceExpression>) 
         last = env.evaluate(expression);
     }
     return last;
+}
+
+// -- private --
+
+export function getPropertyName(node: ESTree.MemberExpression, ctx: Environment<ESTree.Node>): string {
+    if (node.computed) {
+        return ctx.evaluate(node.property);
+    } else {
+        return (<ESTree.Identifier>node.property).name;
+    }
+}
+
+export function getIdentifierOrMemberExpressionValue(node: ESTree.Pattern | ESTree.Expression, env: Environment<ESTree.Node>, assignment = false) {
+    if (node.type === 'Identifier') {
+        return env.scope.get(node.name, assignment);
+
+    } else if (node.type === 'MemberExpression') {
+        const obj = env.evaluate(node.object);
+        const name = getPropertyName(node, env);
+        return createMemberValue(obj, name);
+
+    } else {
+        throw new Error(`evil-eval: Not support to get value of node type "${node.type}"`);
+    }
 }

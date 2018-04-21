@@ -5,122 +5,50 @@ import Signal from '../signal';
 import Environment from '../environment';
 import { slice } from '../tool';
 
+export function VariableDeclaration(env: Environment<ESTree.VariableDeclaration>) {
+    for (const declarator of env.node.declarations) {
+        const v = declarator.init ? env.evaluate(declarator.init) : undefined;
+        declarePatternValue({ node: declarator.id, v, env, scope: env.scope, kind: env.node.kind });
+    }
+}
+
 export function ObjectExpression(env: Environment<ESTree.ObjectExpression>) {
     const obj: { [key: string]: any } = {};
 
-    for (const property of env.node.properties) {
+    for (const prop of env.node.properties) {
         let key: string;
-        if (!property.computed) {
-            if (property.key.type === 'Literal') {
-                key = property.key.value as string;
-            } else if (property.key.type === 'Identifier') {
-                key = property.key.name;
+        if (!prop.computed) {
+            if (prop.key.type === 'Identifier') {
+                key = prop.key.name;
             } else {
-                throw new Error(`evil-eval: [ObjectExpression] Unsupported property key type "${property.key.type}"`);
+                key = (<ESTree.Literal>prop.key).value as string;
             }
+
         } else {
-            if (property.key.type === 'Identifier') {
-                const value = env.scope.get(property.key.name);
+            if (prop.key.type === 'Identifier') {
+                const value = env.scope.get(prop.key.name);
                 key = value.v;
             } else {
-                key = env.evaluate(property.key);
+                key = env.evaluate(prop.key);
             }
         }
 
-        const value = env.evaluate(property.value);
-        if (property.kind === 'init') {
+        const value = env.evaluate(prop.value);
+        if (prop.kind === 'init') {
             obj[key] = value;
-        } else if (property.kind === 'get') {
+        } else if (prop.kind === 'get') {
             Object.defineProperty(obj, key, { get: value });
-        } else if (property.kind === 'set') {
+        } else if (prop.kind === 'set') {
             Object.defineProperty(obj, key, { set: value });
         } else {
-            throw new Error(`evil-eval: [ObjectExpression] Unsupported property kind "${property.kind}"`);
+            throw new Error(`evil-eval: [ObjectExpression] Unsupported property kind "${prop.kind}"`);
         }
     }
 
     return obj;
 }
 
-interface AssignPatternValueOptions<T> {
-    node: T;
-    v: any;
-    env: Environment<ESTree.Node>;
-    scope: Scope;
-    kind?: 'var' | 'let' | 'const';
-}
-
-function assignPatternValue(options: AssignPatternValueOptions<ESTree.Pattern>) {
-    if (options.node.type === 'ObjectPattern') {
-        assignObjectPatternValue(<AssignPatternValueOptions<ESTree.ObjectPattern>>options);
-    } else if (options.node.type === 'ArrayPattern') {
-        assignArrayPatternValue(<AssignPatternValueOptions<ESTree.ArrayPattern>>options);
-    } else {
-        throw new Error(`evil-eval`);
-    }
-}
-function assignObjectPatternValue({ node, v: vObj, env, scope, kind }: AssignPatternValueOptions<ESTree.ObjectPattern>) {
-    for (const prop of node.properties) {
-        let key: string;
-        if (!prop.computed) {
-            if (prop.key.type === 'Literal') {
-                key = prop.key.value as string;
-            } else {
-                key = (<ESTree.Identifier>prop.key).name;
-            }
-        } else {
-            key = env.evaluate(prop.key);
-        }
-
-        const v = vObj[key];
-
-        if (prop.value.type === 'Identifier') {
-            if (v === null || v === undefined) {
-                throw new TypeError(`Cannot destructure property \`${key}\` of 'undefined' or 'null'.`)
-            }
-            if (kind) {
-                scope.declare(prop.value.name, v, kind);
-            } else {
-                const value = scope.get(prop.value.name, true);
-                value.v = v;
-            }
-        } else {
-            assignPatternValue({ node: prop.value, v, env, scope, kind });
-        }
-    }
-}
-
-function assignArrayPatternValue({ node, v: vArr, env, scope, kind }: AssignPatternValueOptions<ESTree.ArrayPattern>) {
-    for (let i = 0, l = node.elements.length; i < l; i++) {
-        const element = node.elements[i];
-
-        let v = vArr[i];
-        if (element.type === 'Identifier') {
-            if (v === undefined) {
-                throw new TypeError(`Cannot read property 'Symbol(Symbol.iterator)' of undefined`);
-            } else if (v === null) {
-                throw new TypeError(`Cannot read property 'Symbol(Symbol.iterator)' of object`);
-            }
-            if (kind) {
-                scope.declare(element.name, v, kind);
-            } else {
-                const value = scope.get(element.name, true);
-                value.v = v;
-            }
-        } else if (element.type === 'RestElement') {
-            const name = (<ESTree.Identifier>element.argument).name;
-            v = slice.call(vArr, i);
-            if (kind) {
-                scope.declare(name, v, kind);
-            } else {
-                const value = scope.get(name, true);
-                value.v = v;
-            }
-        } else {
-            assignPatternValue({ node: element, v, env, scope, kind });
-        }
-    }
-}
+// -- es2015 new feature --
 
 export function ForOfStatement(env: Environment<ESTree.ForOfStatement>) {
     const { left, right, body } = env.node;
@@ -133,23 +61,14 @@ export function ForOfStatement(env: Environment<ESTree.ForOfStatement>) {
             }
 
             const id = left.declarations[0].id;
-            if (id.type === 'Identifier') {
-                // for (let it of list);
-                scope.declare(id.name, v, left.kind);
-            } else {
-                // for (let { id } of list);
-                assignPatternValue({ node: id, v, env, scope, kind: left.kind });
-            }
+            // for (let it of list);
+            // for (let { id } of list);
+            declarePatternValue({ node: id, v, env, scope, kind: left.kind });
 
         } else {
-            if (left.type === 'Identifier') {
-                // for (if of list);
-                const value = scope.get(left.name, true);
-                value.v = v;
-            } else {
-                // for ({ id } of list);
-                assignPatternValue({ node: left, v, env, scope });
-            }
+            // for (it of list);
+            // for ({ id } of list);
+            declarePatternValue({ node: left, v, env, scope });
         }
 
         const signal: Signal = env.evaluate(body, { scope });
@@ -259,4 +178,94 @@ export function ExportDefaultDeclaration(env: Environment<ESTree.ExportDefaultDe
 
 export function ExportAllDeclaration(env: Environment<ESTree.ExportAllDeclaration>) {
     throw new Error(`evil-eval: "${env.node.type}" not implemented`);
+}
+
+// -- private --
+
+interface DeclarePatternValueOptions<T> {
+    node: T;
+    v: any;
+    env: Environment<ESTree.Node>;
+    scope: Scope;
+    kind?: 'var' | 'let' | 'const';
+}
+
+function declarePatternValue(options: DeclarePatternValueOptions<ESTree.Pattern>) {
+    if (options.node.type === 'Identifier') {
+        if (options.kind) {
+            options.scope.declare(options.node.name, options.v, options.kind);
+        } else {
+            const value = options.scope.get(options.node.name, true);
+            value.v = options.v;
+        }
+    } else if (options.node.type === 'ObjectPattern') {
+        declareObjectPatternValue(<DeclarePatternValueOptions<ESTree.ObjectPattern>>options);
+    } else if (options.node.type === 'ArrayPattern') {
+        declareArrayPatternValue(<DeclarePatternValueOptions<ESTree.ArrayPattern>>options);
+    } else {
+        throw new Error(`evil-eval: Not support to declare pattern value of node type "${options.node.type}"`);
+    }
+}
+
+function declareObjectPatternValue({ node, v: vObj, env, scope, kind }: DeclarePatternValueOptions<ESTree.ObjectPattern>) {
+    for (const prop of node.properties) {
+        let key: string;
+        if (!prop.computed) {
+            if (prop.key.type === 'Identifier') {
+                key = prop.key.name;
+            } else {
+                key = (<ESTree.Literal>prop.key).value as string;
+            }
+        } else {
+            key = env.evaluate(prop.key);
+        }
+
+        const v = vObj[key];
+
+        if (prop.value.type === 'Identifier') {
+            if (v === null || v === undefined) {
+                throw new TypeError(`Cannot destructure property \`${key}\` of 'undefined' or 'null'.`)
+            }
+            if (kind) {
+                scope.declare(prop.value.name, v, kind);
+            } else {
+                const value = scope.get(prop.value.name, true);
+                value.v = v;
+            }
+        } else {
+            declarePatternValue({ node: prop.value, v, env, scope, kind });
+        }
+    }
+}
+
+function declareArrayPatternValue({ node, v: vArr, env, scope, kind }: DeclarePatternValueOptions<ESTree.ArrayPattern>) {
+    for (let i = 0, l = node.elements.length; i < l; i++) {
+        const element = node.elements[i];
+
+        let v = vArr[i];
+        if (element.type === 'Identifier') {
+            if (v === undefined) {
+                throw new TypeError(`Cannot read property 'Symbol(Symbol.iterator)' of undefined`);
+            } else if (v === null) {
+                throw new TypeError(`Cannot read property 'Symbol(Symbol.iterator)' of object`);
+            }
+            if (kind) {
+                scope.declare(element.name, v, kind);
+            } else {
+                const value = scope.get(element.name, true);
+                value.v = v;
+            }
+        } else if (element.type === 'RestElement') {
+            const name = (<ESTree.Identifier>element.argument).name;
+            v = slice.call(vArr, i);
+            if (kind) {
+                scope.declare(name, v, kind);
+            } else {
+                const value = scope.get(name, true);
+                value.v = v;
+            }
+        } else {
+            declarePatternValue({ node: element, v, env, scope, kind });
+        }
+    }
 }

@@ -8,7 +8,7 @@
     "test": "jest",
     "cover": "jest --coverage",
     "build": "tsc --target es2015 --declaration --sourceMap",
-    "build-bundle": "webpack"
+    "build-bundle": "webpack && webpack --env.es5"
   },
   "repository": {
     "type": "git",
@@ -24,6 +24,7 @@
     "@types/estree": "0.0.38",
     "@types/jest": "^22.2.3",
     "jest": "^22.4.3",
+    "string-replace-loader": "^2.1.1",
     "ts-jest": "^22.4.3",
     "ts-loader": "^4.2.0",
     "typescript": "^2.8.1",

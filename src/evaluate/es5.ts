@@ -224,25 +224,19 @@ export function ForInStatement(env: Environment<ESTree.ForInStatement>) {
     let scope = env.scope;
 
     let value: Value;
-    let keyName: string | undefined;
-    let isConstDeclaration = false;
-    if (left.type === 'Identifier') {
-        value = env.scope.get(left.name, true);
-    } else if (left.type === 'VariableDeclaration') {
-        scope = env.createBlockScope(true);
-        keyName = (<ESTree.Identifier>left.declarations[0].id).name;
-        value = scope.declare(keyName, null, left.kind);
-        isConstDeclaration = left.kind === 'const';
+    if (left.type === 'VariableDeclaration') {
+        const id = left.declarations[0].id as ESTree.Identifier;
+        value = scope.declare(id.name, undefined, left.kind);
+
+    } else if (left.type === 'Identifier') {
+        value = scope.get(left.name, true);
+
     } else {
         throw new Error(`evil-eval: [ForInStatement] Unsupported left type "${left.type}"`);
     }
 
     for (const key in env.evaluate(right)) {
-        if (!isConstDeclaration) {
-            value.v = key;
-        } else {
-            scope.constDeclare(keyName!, key, true);
-        }
+        value.v = key;
 
         const signal: Signal = env.evaluate(body, { scope });
 

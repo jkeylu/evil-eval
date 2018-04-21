@@ -1,6 +1,5 @@
 import { Value, createMemberValue } from './value';
-
-const hop = Object.prototype.hasOwnProperty;
+import { hop } from './tool';
 
 export default class Sandbox {
     constructor(private sandbox: { [key: string]: any }) { }

@@ -1,5 +1,7 @@
-import Script from './script';
+import Script, { ScriptOptions } from './script';
 
-export function runInContext(code: string, sandbox?: object, options?: any) {
+export type RunInContextOptions = ScriptOptions;
+
+export function runInContext(code: string, sandbox?: object, options?: RunInContextOptions) {
     return new Script(code, options).runInContext(sandbox);
 }

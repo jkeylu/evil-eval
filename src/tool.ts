@@ -23,3 +23,6 @@ export function getIdentifierOrMemberExpressionValue(node: ESTree.Pattern | ESTr
         throw new Error(`evil-eval: Not support to get value of node type "${node.type}"`);
     }
 }
+
+export const slice = Array.prototype.slice;
+export const hop = Object.prototype.hasOwnProperty;

@@ -5,6 +5,41 @@ import Signal from '../signal';
 import Environment from '../environment';
 import { slice } from '../tool';
 
+export function ExpressionStatement(env: Environment<ESTree.ExpressionStatement>) {
+    return env.evaluate(env.node.expression, { extra: env.extra });
+}
+
+export function BlockStatement(env: Environment<ESTree.BlockStatement>) {
+    let scope: Scope;
+    if (!env.scope.invasive) {
+        scope = env.createBlockScope();
+    } else {
+        scope = env.scope;
+        scope.invasive = false;
+    }
+
+    for (const node of env.node.body) {
+        if (node.type === 'FunctionDeclaration') {
+            env.evaluate(node, { scope });
+        } else if (node.type === 'VariableDeclaration' && node.kind === 'var') {
+            for (const declarator of node.declarations) {
+                scope.varDeclare((<ESTree.Identifier>declarator.id).name);
+            }
+        }
+    }
+
+    for (const node of env.node.body) {
+        if (node.type === 'FunctionDeclaration') {
+            continue;
+        }
+
+        const signal: Signal = env.evaluate(node, { scope, extra: env.extra });
+        if (Signal.isSignal(signal)) {
+            return signal;
+        }
+    }
+}
+
 export function VariableDeclaration(env: Environment<ESTree.VariableDeclaration>) {
     for (const declarator of env.node.declarations) {
         const v = declarator.init ? env.evaluate(declarator.init) : undefined;
@@ -48,6 +83,61 @@ export function ObjectExpression(env: Environment<ESTree.ObjectExpression>) {
     return obj;
 }
 
+export function FunctionExpression(env: Environment<ESTree.FunctionExpression>) {
+    const node = env.node;
+    const fn = function (this: any) {
+        const scope = env.createFunctionScope(true);
+
+        scope.constDeclare('this', this);
+        scope.constDeclare('arguments', arguments);
+        if (env.extra && env.extra.SuperClass) {
+            if (env.extra.isConstructor || env.extra.isStaticMethod) {
+                scope.constDeclare('@@evil-eval/super', env.extra.SuperClass);
+            } else if (env.extra.isMethod) {
+                scope.constDeclare('@@evil-eval/super', env.extra.SuperClass.prototype);
+            }
+        }
+
+        for (let i = 0, l = node.params.length; i < l; i++) {
+            const { name } = <ESTree.Identifier>node.params[i];
+            scope.varDeclare(name, arguments[i]);
+        }
+
+        const signal = env.evaluate(node.body, { scope, extra: env.extra });
+        if (Signal.isReturn(signal)) {
+            return signal.value;
+        }
+    };
+
+    Object.defineProperties(fn, {
+        name: { value: node.id ? node.id.name : '' },
+        length: { value: node.params.length }
+    });
+
+    return fn;
+}
+
+export function CallExpression(env: Environment<ESTree.CallExpression>) {
+    const fn: Function = env.evaluate(env.node.callee);
+    const args = env.node.arguments.map(it => env.evaluate(it));
+
+    let thisValue: any;
+    if (env.node.callee.type === 'MemberExpression') {
+        if (env.node.callee.object.type !== 'Super') {
+            thisValue = env.evaluate(env.node.callee.object);
+        } else {
+            const value = env.scope.get('this');
+            thisValue = value.v;
+        }
+
+    } else if (env.extra && env.extra.isConstructor) {
+        const value = env.scope.get('this');
+        thisValue = value.v;
+    }
+
+    return fn.apply(thisValue, args);
+}
+
 // -- es2015 new feature --
 
 export function ForOfStatement(env: Environment<ESTree.ForOfStatement>) {
@@ -85,7 +175,8 @@ export function ForOfStatement(env: Environment<ESTree.ForOfStatement>) {
 }
 
 export function Super(env: Environment<ESTree.Super>) {
-    throw new Error(`evil-eval: "${env.node.type}" not implemented`);
+    const value = env.scope.get('@@evil-eval/super');
+    return value.v;
 }
 
 export function SpreadElement(env: Environment<ESTree.SpreadElement>) {
@@ -129,19 +220,128 @@ export function AssignmentPattern(env: Environment<ESTree.AssignmentPattern>) {
 }
 
 export function ClassBody(env: Environment<ESTree.ClassBody>) {
-    throw new Error(`evil-eval: "${env.node.type}" not implemented`);
+    const body = env.node.body;
+
+    const ctor = body.find(n => n.kind === 'constructor');
+
+    let Class: Function;
+    if (ctor) {
+        Class = env.evaluate(ctor.value, { extra: { ...env.extra, isConstructor: true } });
+    } else {
+        Class = function () { }
+    }
+
+    if (env.extra && env.extra.SuperClass) {
+        extends_(Class, env.extra.SuperClass);
+    }
+
+    let staticProperties: PropertyDescriptorMap = {};
+    let properties: PropertyDescriptorMap = {};
+
+    for (const node of body) {
+        let key = (<ESTree.Identifier>node.key).name;
+        if (node.computed) {
+            const value = env.scope.get(key)
+            key = value.v;
+        }
+        let prop: PropertyDescriptor;
+        if (node.kind === 'method') {
+            if (!node.static) {
+                prop = properties[key];
+                if (!prop || !prop.value) {
+                    prop = {
+                        configurable: true,
+                        enumerable: true
+                    };
+                }
+                prop.value = env.evaluate(node.value, { extra: { ...env.extra, isMethod: true } });
+                properties[key] = prop;
+            } else {
+                prop = staticProperties[key];
+                if (!prop || !prop.value) {
+                    prop = {
+                        configurable: true,
+                        enumerable: true
+                    };
+                }
+                prop.value = env.evaluate(node.value, { extra: { ...env.extra, isStaticMethod: true } });
+                staticProperties[key] = prop;
+            }
+
+        } else if (node.kind === 'get') {
+            if (!node.static) {
+                prop = properties[key];
+                if (!prop || prop.value) {
+                    prop = {
+                        configurable: true,
+                        enumerable: true
+                    };
+                }
+                prop.get = env.evaluate(node.value);
+                properties[key] = prop;
+            } else {
+                prop = staticProperties[key];
+                if (!prop || prop.value) {
+                    prop = {
+                        configurable: true,
+                        enumerable: true
+                    };
+                }
+                prop.get = env.evaluate(node.value);
+                staticProperties[key] = prop;
+            }
+
+        } else if (node.kind === 'set') {
+            if (!node.static) {
+                prop = properties[key];
+                if (!prop || prop.value) {
+                    prop = {
+                        configurable: true,
+                        enumerable: true
+                    };
+                }
+                prop.set = env.evaluate(node.value);
+                properties[key] = prop;
+            } else {
+                prop = staticProperties[key];
+                if (!prop || prop.value) {
+                    prop = {
+                        configurable: true,
+                        enumerable: true
+                    };
+                }
+                prop.set = env.evaluate(node.value);
+                staticProperties[key] = prop;
+            }
+        }
+    }
+
+    Object.defineProperties(Class, staticProperties);
+    Object.defineProperties(Class.prototype, properties);
+
+    return Class;
 }
 
 export function MethodDefinition(env: Environment<ESTree.MethodDefinition>) {
-    throw new Error(`evil-eval: "${env.node.type}" not implemented`);
+    throw new Error(`evil-eval: [MethodDefinition] Should not happen`);
 }
 
 export function ClassDeclaration(env: Environment<ESTree.ClassDeclaration>) {
-    throw new Error(`evil-eval: "${env.node.type}" not implemented`);
+    const Class = ClassExpression(<any>env);
+    env.scope.constDeclare(env.node.id.name, Class);
 }
 
 export function ClassExpression(env: Environment<ESTree.ClassExpression>) {
-    throw new Error(`evil-eval: "${env.node.type}" not implemented`);
+    const { node } = env;
+    let SuperClass;
+    if (node.superClass) {
+        SuperClass = env.evaluate(node.superClass);
+    }
+    const Class = env.evaluate(node.body, { extra: { SuperClass } });
+    if (node.id) {
+        Object.defineProperty(Class, 'name', { value: node.id.name });
+    }
+    return Class;
 }
 
 export function MetaProperty(env: Environment<ESTree.MetaProperty>) {
@@ -268,4 +468,18 @@ function declareArrayPatternValue({ node, v: vArr, env, scope, kind }: DeclarePa
             declarePatternValue({ node: element, v, env, scope, kind });
         }
     }
+}
+
+const extendStatics = Object.setPrototypeOf
+    || ({ __proto__: [] } instanceof Array && function (d, b) { d.__proto__ = b; })
+    || function (Class: any, SuperClass: any) { for (var p in SuperClass) if (SuperClass.hasOwnProperty(p)) Class[p] = SuperClass[p]; };
+
+function extends_(Class: Function, SuperClass: Function) {
+    extendStatics(Class, SuperClass);
+
+    function __(this: any) { this.constructor = Class; }
+
+    Class.prototype = SuperClass === null
+        ? Object.create(SuperClass)
+        : (__.prototype = SuperClass.prototype, new (<{ new(): any; }><any>__)());
 }

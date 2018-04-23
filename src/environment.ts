@@ -2,9 +2,17 @@ import * as ESTree from 'estree';
 import Scope from './scope';
 import { EvaluateMap } from './evaluate';
 
+export interface EnvironmentExtra {
+    isConstructor?: boolean;
+    isMethod?: boolean;
+    isStaticMethod?: boolean;
+    SuperClass?: Function;
+}
+
 export interface EvaluateOptions {
     scope?: Scope;
     label?: string;
+    extra?: EnvironmentExtra;
 }
 
 export default class Environment<T> {
@@ -12,6 +20,7 @@ export default class Environment<T> {
     node: T;
     evaluateMap: EvaluateMap;
     label?: string;
+    extra?: EnvironmentExtra;
 
     constructor(node: T, scope: Scope, evaluateMap: EvaluateMap) {
         this.node = node;
@@ -22,10 +31,8 @@ export default class Environment<T> {
     evaluate(node: ESTree.Node, opts: EvaluateOptions = {}): any {
         const scope = opts.scope || this.scope;
         const env = new Environment(node, scope, this.evaluateMap);
-
-        if (opts.label) {
-            env.label = opts.label;
-        }
+        env.label = opts.label;
+        env.extra = opts.extra;
 
         const evaluate = this.evaluateMap[node.type];
         if (!evaluate) {

@@ -184,7 +184,26 @@ export function SpreadElement(env: Environment<ESTree.SpreadElement>) {
 }
 
 export function ArrowFunctionExpression(env: Environment<ESTree.ArrowFunctionExpression>) {
-    throw new Error(`evil-eval: "${env.node.type}" not implemented`);
+    const node = env.node;
+    const fn = function (this: any) {
+        const scope = env.createFunctionScope(true);
+
+        for (let i = 0, l = node.params.length; i < l; i++) {
+            const { name } = <ESTree.Identifier>node.params[i];
+            scope.varDeclare(name, arguments[i]);
+        }
+
+        const signal = env.evaluate(node.body, { scope, extra: env.extra });
+        if (Signal.isReturn(signal)) {
+            return signal.value;
+        }
+    };
+
+    Object.defineProperties(fn, {
+        length: { value: node.params.length }
+    });
+
+    return fn;
 }
 
 export function YieldExpression(env: Environment<ESTree.YieldExpression>) {

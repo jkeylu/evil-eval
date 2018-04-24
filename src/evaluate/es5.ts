@@ -374,7 +374,7 @@ export function UpdateExpression(env: Environment<ESTree.UpdateExpression>) {
     return UpdateExpressionOperatorEvaluateMap[env.node.operator](value, env.node.prefix);
 }
 
-const BinaryExpressionOperatorEvaluateMap = {
+export const BinaryExpressionOperatorEvaluateMap = {
     '==': (a: any, b: any) => a == b,
     '!=': (a: any, b: any) => a != b,
     '===': (a: any, b: any) => a === b,
@@ -391,7 +391,7 @@ const BinaryExpressionOperatorEvaluateMap = {
     '*': (a: any, b: any) => a * b,
     '/': (a: any, b: any) => a / b,
     '%': (a: any, b: any) => a % b,
-    '**': (a: any, b: any) => a ** b,
+    '**': (a: any, b: any) => { throw new Error('evil-eval: es5 not support operator "**"') },
     '|': (a: any, b: any) => a | b,
     '^': (a: any, b: any) => a ^ b,
     '&': (a: any, b: any) => a & b,
@@ -404,14 +404,14 @@ export function BinaryExpression(env: Environment<ESTree.BinaryExpression>) {
     return BinaryExpressionOperatorEvaluateMap[env.node.operator](a, b);
 }
 
-const AssignmentExpressionOperatorEvaluateMap = {
+export const AssignmentExpressionOperatorEvaluateMap = {
     '=': (value: Value, v: any) => value.v = v,
     '+=': (value: Value, v: any) => value.v += v,
     '-=': (value: Value, v: any) => value.v -= v,
     '*=': (value: Value, v: any) => value.v *= v,
     '/=': (value: Value, v: any) => value.v /= v,
     '%=': (value: Value, v: any) => value.v %= v,
-    '**=': (value: Value, v: any) => value.v **= v,
+    '**=': (value: Value, v: any) => { throw new Error('evil-eval: es5 not support operator "**=') },
     '<<=': (value: Value, v: any) => value.v <<= v,
     '>>=': (value: Value, v: any) => value.v >>= v,
     '>>>=': (value: Value, v: any) => value.v >>>= v,

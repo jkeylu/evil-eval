@@ -159,13 +159,6 @@ describe('BinaryExpression', () => {
         runInContext(code, { expect });
     });
 
-    test('**', () => {
-        const code = `
-            expect(2 ** 2).toBe(4);
-        `;
-        runInContext(code, { expect });
-    });
-
     test('|', () => {
         const code = `
             expect(0 | 0).toBe(0);

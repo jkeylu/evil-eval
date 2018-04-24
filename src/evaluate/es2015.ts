@@ -3,7 +3,7 @@ import Scope from '../scope';
 import { Value } from '../value';
 import Signal from '../signal';
 import Environment from '../environment';
-import { slice } from '../tool';
+import { slice, toString } from '../tool';
 
 export function ExpressionStatement(env: Environment<ESTree.ExpressionStatement>) {
     return env.evaluate(env.node.expression, { extra: env.extra });
@@ -45,6 +45,18 @@ export function VariableDeclaration(env: Environment<ESTree.VariableDeclaration>
         const v = declarator.init ? env.evaluate(declarator.init) : undefined;
         declarePatternValue({ node: declarator.id, v, env, scope: env.scope, kind: env.node.kind });
     }
+}
+
+export function ArrayExpression(env: Environment<ESTree.ArrayExpression>) {
+    let arr: any[] = [];
+    for (let element of env.node.elements) {
+        if (element.type !== 'SpreadElement') {
+            arr.push(env.evaluate(element));
+        } else {
+            arr = [...arr, ...env.evaluate(element.argument)];
+        }
+    }
+    return arr;
 }
 
 export function ObjectExpression(env: Environment<ESTree.ObjectExpression>) {
@@ -179,8 +191,11 @@ export function Super(env: Environment<ESTree.Super>) {
     return value.v;
 }
 
+/**
+ * see: ArrayExpression
+ */
 export function SpreadElement(env: Environment<ESTree.SpreadElement>) {
-    throw new Error(`evil-eval: "${env.node.type}" not implemented`);
+    throw new Error(`evil-eval: [SpreadElement] Should not happen`);
 }
 
 export function ArrowFunctionExpression(env: Environment<ESTree.ArrowFunctionExpression>) {
@@ -341,6 +356,9 @@ export function ClassBody(env: Environment<ESTree.ClassBody>) {
     return Class;
 }
 
+/**
+ * see: ClassBody
+ */
 export function MethodDefinition(env: Environment<ESTree.MethodDefinition>) {
     throw new Error(`evil-eval: [MethodDefinition] Should not happen`);
 }

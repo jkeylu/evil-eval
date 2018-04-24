@@ -59,4 +59,21 @@ describe('ClassDeclaration', () => {
         expect(result.name).toBe('jKey');
         expect(result.speak()).toBe('My name is jKey');
     });
+
+    test('multilevel extends', () => {
+        const code = `
+            class A {
+                foo(bar) { return bar; }
+            }
+            class B extends A {
+                foo(bar) { return super.foo('A') + bar; }
+            }
+            class C extends B {
+                foo(bar) { return super.foo('B') + bar; }
+            }
+            module.exports = new C().foo('C');
+        `;
+        const result = runInContext(code, {}, OPTIONS);
+        expect(result).toBe('ABC');
+    });
 });

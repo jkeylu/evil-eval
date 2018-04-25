@@ -366,6 +366,7 @@ export function MethodDefinition(env: Environment<ESTree.MethodDefinition>) {
 export function ClassDeclaration(env: Environment<ESTree.ClassDeclaration>) {
     const Class = ClassExpression(<any>env);
     env.scope.constDeclare(env.node.id.name, Class);
+    return Class;
 }
 
 export function ClassExpression(env: Environment<ESTree.ClassExpression>) {
@@ -402,7 +403,24 @@ export function ImportNamespaceSpecifier(env: Environment<ESTree.ImportNamespace
 }
 
 export function ExportNamedDeclaration(env: Environment<ESTree.ExportNamedDeclaration>) {
-    throw new Error(`evil-eval: "${env.node.type}" not implemented`);
+    const { node, scope } = env;
+    const exportsValue = scope.get('exports');
+    if (node.declaration) {
+        if (node.declaration.type === 'VariableDeclaration') {
+            for (const declarator of node.declaration.declarations) {
+                const v = env.evaluate(declarator.init!);
+                const declarationNames: string[] = [];
+                declarePatternValue({ node: declarator.id, v, env, scope: env.scope, kind: node.declaration.kind, declarationNames });
+                for (const name of declarationNames) {
+                    exportsValue.v[name] = scope.get(name).v;
+                }
+            }
+        } else {
+            exportsValue.v[node.declaration.id.name] = env.evaluate(node.declaration);
+        }
+    } else {
+        throw new Error(`evil-eval: "${env.node.type}" not implemented`);
+    }
 }
 
 export function ExportSpecifier(env: Environment<ESTree.ExportSpecifier>) {
@@ -410,7 +428,8 @@ export function ExportSpecifier(env: Environment<ESTree.ExportSpecifier>) {
 }
 
 export function ExportDefaultDeclaration(env: Environment<ESTree.ExportDefaultDeclaration>) {
-    throw new Error(`evil-eval: "${env.node.type}" not implemented`);
+    const value = env.scope.get('exports')
+    value.v.default = env.evaluate(env.node.declaration);
 }
 
 export function ExportAllDeclaration(env: Environment<ESTree.ExportAllDeclaration>) {
@@ -425,12 +444,14 @@ interface DeclarePatternValueOptions<T> {
     env: Environment<ESTree.Node>;
     scope: Scope;
     kind?: 'var' | 'let' | 'const';
+    declarationNames?: string[];
 }
 
 function declarePatternValue(options: DeclarePatternValueOptions<ESTree.Pattern>) {
     if (options.node.type === 'Identifier') {
         if (options.kind) {
             options.scope.declare(options.node.name, options.v, options.kind);
+            options.declarationNames && options.declarationNames.push(options.node.name);
         } else {
             const value = options.scope.get(options.node.name, true);
             value.v = options.v;
@@ -444,7 +465,7 @@ function declarePatternValue(options: DeclarePatternValueOptions<ESTree.Pattern>
     }
 }
 
-function declareObjectPatternValue({ node, v: vObj, env, scope, kind }: DeclarePatternValueOptions<ESTree.ObjectPattern>) {
+function declareObjectPatternValue({ node, v: vObj, env, scope, kind, declarationNames }: DeclarePatternValueOptions<ESTree.ObjectPattern>) {
     for (const prop of node.properties) {
         let key: string;
         if (!prop.computed) {
@@ -465,17 +486,18 @@ function declareObjectPatternValue({ node, v: vObj, env, scope, kind }: DeclareP
             }
             if (kind) {
                 scope.declare(prop.value.name, v, kind);
+                declarationNames && declarationNames.push(prop.value.name);
             } else {
                 const value = scope.get(prop.value.name, true);
                 value.v = v;
             }
         } else {
-            declarePatternValue({ node: prop.value, v, env, scope, kind });
+            declarePatternValue({ node: prop.value, v, env, scope, kind, declarationNames });
         }
     }
 }
 
-function declareArrayPatternValue({ node, v: vArr, env, scope, kind }: DeclarePatternValueOptions<ESTree.ArrayPattern>) {
+function declareArrayPatternValue({ node, v: vArr, env, scope, kind, declarationNames }: DeclarePatternValueOptions<ESTree.ArrayPattern>) {
     for (let i = 0, l = node.elements.length; i < l; i++) {
         const element = node.elements[i];
 
@@ -488,6 +510,7 @@ function declareArrayPatternValue({ node, v: vArr, env, scope, kind }: DeclarePa
             }
             if (kind) {
                 scope.declare(element.name, v, kind);
+                declarationNames && declarationNames.push(element.name);
             } else {
                 const value = scope.get(element.name, true);
                 value.v = v;
@@ -497,12 +520,13 @@ function declareArrayPatternValue({ node, v: vArr, env, scope, kind }: DeclarePa
             v = slice.call(vArr, i);
             if (kind) {
                 scope.declare(name, v, kind);
+                declarationNames && declarationNames.push(name);
             } else {
                 const value = scope.get(name, true);
                 value.v = v;
             }
         } else {
-            declarePatternValue({ node: element, v, env, scope, kind });
+            declarePatternValue({ node: element, v, env, scope, kind, declarationNames });
         }
     }
 }

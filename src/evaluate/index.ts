@@ -17,11 +17,6 @@ const es2017: EvaluateMap = <any>{ ...es2016, ...ES2017 };
 const es2018: EvaluateMap = <any>{ ...es2017, ...ES2018 };
 
 const evaluate: { [name: string]: EvaluateMap } = {
-    es5,
-    es2015,
-    es2016,
-    es2017,
-    es2018,
     '5': es5,
     '6': es2015,
     '7': es2016,

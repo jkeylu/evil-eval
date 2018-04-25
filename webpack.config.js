@@ -23,11 +23,14 @@ module.exports = env => {
     if (env && env.es5) {
         config.output.filename = 'evil-eval.es5.min.js';
         config.module.rules.unshift({
-            test: /\.ts$/,
+            test: /evaluate\/index\.ts$/,
             loader: 'string-replace-loader',
             options: {
-                search: '/evaluate',
-                replace: '/evaluate/index.es5'
+                multiple: [
+                    { search: '^.*?ES201\\d.*?es201\\d.*$', replace: '', flags: 'gm', strict: true },
+                    { search: '^.*?es201\\d.*?ES201\\d.*$', replace: '', flags: 'gm', strict: true },
+                    { search: '^.*?\'\\d\'.*es201\\d.*$', replace: '', flags: 'gm', strict: true }
+                ]
             }
         });
     }

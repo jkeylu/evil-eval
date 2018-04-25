@@ -12,24 +12,43 @@ export interface ScriptOptions {
     sourceType?: 'script' | 'module';
 }
 
+const ecmaVersionMap = {
+    es5: 5,
+    es2015: 6,
+    es2016: 7,
+    es2017: 8,
+    es2018: 9,
+    '5': 5,
+    '6': 6,
+    '7': 7,
+    '8': 8,
+    '9': 9
+};
+
 export default class Script {
     code: string;
     ast: ESTree.Program;
     evaluateMap: EvaluateMap;
-    sourceType: 'script' | 'module';
+    options: ScriptOptions;
 
     constructor(code: string, options: ScriptOptions = {}) {
+        this.options = {
+            ecmaVersion: 5,
+            sourceType: 'module',
+            ...options
+        };
+        this.options.ecmaVersion = <any>ecmaVersionMap[this.options.ecmaVersion!];
+
         this.code = code;
-        this.ast = acorn.parse(this.code);
-        this.evaluateMap = evaluate[options.ecmaVersion || 'es5'];
-        this.sourceType = options.sourceType || 'module';
+        this.ast = acorn.parse(this.code, <any>this.options);
+        this.evaluateMap = evaluate[this.options.ecmaVersion!];
     }
 
     runInContext(sandbox: any = {}) {
         const scope = this.createGlobalScope(sandbox);
         const env = new Environment(null, scope, this.evaluateMap);
 
-        if (this.sourceType === 'module') {
+        if (this.options.sourceType === 'module') {
             const exports = {};
             const module = { exports };
             scope.declaration['exports'] = createSimpleValue(exports);

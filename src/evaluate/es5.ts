@@ -254,6 +254,7 @@ export function ForInStatement(env: Environment<ESTree.ForInStatement>) {
 export function FunctionDeclaration(env: Environment<ESTree.FunctionDeclaration>) {
     const fn = FunctionExpression(<any>env);
     env.scope.varDeclare(env.node.id.name, fn);
+    return fn;
 }
 
 export function VariableDeclaration(env: Environment<ESTree.VariableDeclaration>) {

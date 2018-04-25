@@ -1,0 +1,5 @@
+coverage/
+src/
+test/
+tsconfig.json
+webpack.config.js

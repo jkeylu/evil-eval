@@ -97,29 +97,35 @@ export function ObjectExpression(env: Environment<ESTree.ObjectExpression>) {
 
 export function FunctionExpression(env: Environment<ESTree.FunctionExpression>) {
     const node = env.node;
-    const fn = function (this: any) {
-        const scope = env.createFunctionScope(true);
+    let fn: Function;
 
-        scope.constDeclare('this', this);
-        scope.constDeclare('arguments', arguments);
-        if (env.extra && env.extra.SuperClass) {
-            if (env.extra.isConstructor || env.extra.isStaticMethod) {
-                scope.constDeclare('@@evil-eval/super', env.extra.SuperClass);
-            } else if (env.extra.isMethod) {
-                scope.constDeclare('@@evil-eval/super', env.extra.SuperClass.prototype);
+    if (!node.generator) {
+        fn = function (this: any) {
+            const scope = env.createFunctionScope(true);
+
+            scope.constDeclare('this', this);
+            scope.constDeclare('arguments', arguments);
+            if (env.extra && env.extra.SuperClass) {
+                if (env.extra.isConstructor || env.extra.isStaticMethod) {
+                    scope.constDeclare('@@evil-eval/super', env.extra.SuperClass);
+                } else if (env.extra.isMethod) {
+                    scope.constDeclare('@@evil-eval/super', env.extra.SuperClass.prototype);
+                }
             }
-        }
 
-        for (let i = 0, l = node.params.length; i < l; i++) {
-            const { name } = <ESTree.Identifier>node.params[i];
-            scope.varDeclare(name, arguments[i]);
-        }
+            for (let i = 0, l = node.params.length; i < l; i++) {
+                const { name } = <ESTree.Identifier>node.params[i];
+                scope.varDeclare(name, arguments[i]);
+            }
 
-        const signal = env.evaluate(node.body, { scope, extra: env.extra });
-        if (Signal.isReturn(signal)) {
-            return signal.value;
-        }
-    };
+            const signal = env.evaluate(node.body, { scope, extra: env.extra });
+            if (Signal.isReturn(signal)) {
+                return signal.value;
+            }
+        };
+    } else {
+        throw new Error('evil-eval: Generator Function not implemented');
+    }
 
     Object.defineProperties(fn, {
         name: { value: node.id ? node.id.name : '' },
